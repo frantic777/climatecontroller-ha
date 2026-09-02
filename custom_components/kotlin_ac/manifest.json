@@ -2,7 +2,7 @@
   "domain": "kotlin_ac",
   "name": "AC Brain",
   "config_flow": true,
-  "version": "5.0.9",
+  "version": "5.0.10",
   "dependencies": [],
   "codeowners": ["@frantic777"],
   "documentation": "https://github.com/frantic777/climatecontroller-ha",
