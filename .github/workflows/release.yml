@@ -1,0 +1,41 @@
+name: Publish HACS integration release
+
+on:
+  push:
+    tags: ["v[0-9]*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out distribution
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate and package release
+        run: |
+          python3 scripts/validate_distribution.py --tag "$GITHUB_REF_NAME"
+          python3 scripts/package_integration.py
+          cd build
+          sha256sum kotlin_ac.zip > SHA256SUMS
+
+      - name: Publish immutable integration release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; refusing replacement."
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            build/kotlin_ac.zip \
+            build/SHA256SUMS \
+            --title "AC Brain $GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag
+

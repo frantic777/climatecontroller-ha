@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to AC Brain",
+        "description": "Enter the local URL of the AC Brain controller.",
+        "data": {
+          "url": "Controller URL"
+        },
+        "data_description": {
+          "url": "For the local add-on this is usually http://local-kotlin-climate-brain:8080."
+        }
+      },
+      "reconfigure": {
+        "title": "Update AC Brain connection",
+        "description": "Change the local URL used to reach the AC Brain controller.",
+        "data": {
+          "url": "Controller URL"
+        },
+        "data_description": {
+          "url": "The controller must be reachable before the change is saved."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to AC Brain. Check the URL and that the controller is running.",
+      "invalid_url": "Enter a valid URL beginning with http:// or https://.",
+      "unsupported_api_version": "This controller uses the legacy API. Update AC Brain to API v2 before connecting.",
+      "already_configured": "This AC Brain controller is already configured."
+    },
+    "abort": {
+      "already_configured": "This AC Brain controller is already configured.",
+      "single_instance_allowed": "AC Brain is already configured. Use Reconfigure to change its controller address.",
+      "reconfigure_successful": "The AC Brain connection was updated successfully."
+    }
+  }
+}

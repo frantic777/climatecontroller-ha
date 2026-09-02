@@ -1,0 +1,33 @@
+name: Validate Home Assistant distribution
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out distribution
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate metadata and package integration
+        run: |
+          python3 scripts/validate_distribution.py
+          python3 scripts/package_integration.py
+          unzip -t build/kotlin_ac.zip
+
+      - name: Verify deterministic integration archive
+        run: |
+          first=$(sha256sum build/kotlin_ac.zip | cut -d ' ' -f 1)
+          python3 scripts/package_integration.py
+          second=$(sha256sum build/kotlin_ac.zip | cut -d ' ' -f 1)
+          test "$first" = "$second"
+

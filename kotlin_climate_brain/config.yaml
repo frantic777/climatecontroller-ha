@@ -1,0 +1,106 @@
+name: "Kotlin Climate Brain"
+version: "5.0.9"
+slug: "kotlin_climate_brain"
+description: "Reactive Climate Control"
+image: "ghcr.io/frantic777/climatecontroller"
+arch:
+  - aarch64
+  - amd64
+startup: services
+timeout: 90
+watchdog: "http://[HOST]:[PORT:8080]/healthz"
+services:
+  - mysql:need
+  - mqtt:need
+options:
+  # Database Group (Flattened)
+  db_url: "jdbc:mariadb://core-mariadb:3306/homeassistant"
+  db_user: "homeassistant"
+  ac_daikin_ip: "192.168.1.246"
+  mqtt_url: "tcp://core-mosquitto:1883"
+  mqtt_user: "homeassistant"
+  zones:
+    - name: "Living"
+      topic: "zigbee2mqtt/Living room sensor"
+      airflow_weight: 1.0
+    - name: "Office"
+      topic: "zigbee2mqtt/Office sensor"
+      airflow_weight: 1.0
+    - name: "Main"
+      topic: "zigbee2mqtt/Main bedroom sensor"
+      airflow_weight: 1.0
+    - name: "Guest"
+      topic: "zigbee2mqtt/Guest room sensor"
+      airflow_weight: 1.0
+    - name: "Kids"
+      topic: "zigbee2mqtt/Kids room sensor"
+      airflow_weight: 1.0
+  control:
+    auto_actuation: disabled
+    physical_write_gate: blocked
+    demand_on_delta: 0.6
+    demand_off_delta: 0.15
+    demand_qualification_seconds: 120
+    sensor_stale_seconds: 5400
+    maximum_temperature_change_c_per_minute: 2.0
+    intake_stale_seconds: 120
+    maximum_sensorless_run_seconds: 900
+    minimum_run_seconds: 300
+    minimum_off_seconds: 300
+    direction_dwell_seconds: 1200
+    emergency_opposite_delta: 3.0
+    persistent_call_warning_seconds: 5400
+    equipment_call_margin: 1.0
+    sensorless_equipment_bias: 2.0
+    equipment_target_min: 16.0
+    equipment_target_max: 30.0
+    equipment_target_step: 0.5
+    equipment_target_deadband: 0.5
+    equipment_target_min_update_seconds: 300
+    all_sensors_stale_policy: safe_off
+    manual_missing_sensor_policy: intake_fallback
+    external_change_policy: adopt_user_change
+  airflow:
+    minimum_open_zones: 1
+    minimum_open_weight: 1.0
+schema:
+  db_url: str
+  db_user: str
+  db_password: password
+  ac_daikin_ip: str
+  mqtt_url: str
+  mqtt_user: str
+  mqtt_password: password
+  zones:
+    - name: str
+      topic: str
+      airflow_weight: float
+  control:
+    auto_actuation: list(disabled|shadow|enabled)
+    physical_write_gate: list(blocked|enabled)
+    demand_on_delta: float
+    demand_off_delta: float
+    demand_qualification_seconds: int
+    sensor_stale_seconds: int
+    maximum_temperature_change_c_per_minute: float
+    intake_stale_seconds: int
+    maximum_sensorless_run_seconds: int
+    minimum_run_seconds: int
+    minimum_off_seconds: int
+    direction_dwell_seconds: int
+    emergency_opposite_delta: float
+    persistent_call_warning_seconds: int
+    equipment_call_margin: float
+    sensorless_equipment_bias: float
+    equipment_target_min: float
+    equipment_target_max: float
+    equipment_target_step: float
+    equipment_target_deadband: float
+    equipment_target_min_update_seconds: int
+    all_sensors_stale_policy: list(safe_off|intake_fallback)
+    manual_missing_sensor_policy: list(safe_off|intake_fallback|fail_open)
+    external_change_policy: list(adopt_user_change|reassert_brain|pause_automation)
+  airflow:
+    minimum_open_zones: int
+    minimum_open_weight: float
+    bypass_zone: str?
