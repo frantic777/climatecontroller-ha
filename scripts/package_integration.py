@@ -31,7 +31,10 @@ def main() -> int:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(OUTPUT, "w", compression=ZIP_STORED) as archive:
         for source in files:
-            relative = source.relative_to(ROOT).as_posix()
+            # HACS extracts a zip_release directly into the integration directory.
+            # The archive must therefore contain manifest.json at its root rather
+            # than another custom_components/kotlin_ac prefix.
+            relative = source.relative_to(SOURCE).as_posix()
             info = ZipInfo(relative, FIXED_TIMESTAMP)
             info.create_system = 3
             info.compress_type = ZIP_STORED
@@ -43,4 +46,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

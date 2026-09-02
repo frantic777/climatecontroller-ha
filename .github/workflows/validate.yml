@@ -23,6 +23,7 @@ jobs:
           python3 scripts/validate_distribution.py
           python3 scripts/package_integration.py
           unzip -t build/kotlin_ac.zip
+          python3 -c 'from zipfile import ZipFile; names=ZipFile("build/kotlin_ac.zip").namelist(); assert "manifest.json" in names; assert not any(name.startswith("custom_components/") for name in names)'
 
       - name: Verify deterministic integration archive
         run: |
@@ -30,4 +31,3 @@ jobs:
           python3 scripts/package_integration.py
           second=$(sha256sum build/kotlin_ac.zip | cut -d ' ' -f 1)
           test "$first" = "$second"
-
