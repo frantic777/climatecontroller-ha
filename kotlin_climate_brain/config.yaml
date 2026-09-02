@@ -1,5 +1,5 @@
 name: "Kotlin Climate Brain"
-version: "5.0.10"
+version: "5.0.11"
 slug: "kotlin_climate_brain"
 description: "Reactive Climate Control"
 image: "ghcr.io/frantic777/climatecontroller"
