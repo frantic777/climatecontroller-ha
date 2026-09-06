@@ -19,7 +19,6 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .models import (
-    AutoActuation,
     CommandStatus,
     ControlAction,
     ControlIssue,
@@ -101,22 +100,16 @@ class KotlinMainAC(CoordinatorEntity, ClimateEntity):
 
     @property
     def hvac_modes(self):
-        """Expose AUTO only when the controller can actually actuate AUTO safely."""
+        """Expose every mode supported by the sole controller runtime."""
 
-        state = self.coordinator.data
-        modes = [
+        return [
             HVACMode.OFF,
             HVACMode.COOL,
             HVACMode.HEAT,
+            HVACMode.AUTO,
             HVACMode.DRY,
             HVACMode.FAN_ONLY,
         ]
-        if (
-            state is not None
-            and state.control.auto_actuation is AutoActuation.ENABLED
-        ):
-            modes.insert(3, HVACMode.AUTO)
-        return modes
 
     @property
     def available(self) -> bool:
@@ -222,9 +215,6 @@ class KotlinMainAC(CoordinatorEntity, ClimateEntity):
             "current_temperature_contributors": list(
                 state.current_temperature_contributors
             ),
-            "auto_actuation": state.control.auto_actuation.value,
-            "physical_write_gate_open": state.control.physical_write_gate_open,
-            "auto_write_suppressed": state.control.auto_write_suppressed,
             "proposed_auto_plan": (
                 {
                     "action": proposal.action.value,
@@ -250,15 +240,6 @@ class KotlinMainAC(CoordinatorEntity, ClimateEntity):
         requested_mode = HA_TO_REQUESTED_MODE.get(hvac_mode)
         if requested_mode is None:
             raise HomeAssistantError("Unsupported AC Brain HVAC mode")
-        state = self.coordinator.data
-        if (
-            hvac_mode == HVACMode.AUTO
-            and (
-                state is None
-                or state.control.auto_actuation is not AutoActuation.ENABLED
-            )
-        ):
-            raise HomeAssistantError("AC Brain AUTO actuation is not enabled")
         await self.coordinator.async_apply_patch(
             {"enabled": True, "mode": requested_mode}
         )

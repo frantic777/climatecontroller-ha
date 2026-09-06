@@ -1,5 +1,5 @@
 name: "Kotlin Climate Brain"
-version: "5.0.12"
+version: "5.0.13"
 slug: "kotlin_climate_brain"
 description: "Reactive Climate Control"
 image: "ghcr.io/frantic777/climatecontroller"
@@ -36,8 +36,6 @@ options:
       topic: "zigbee2mqtt/Kids room sensor"
       airflow_weight: 1.0
   control:
-    auto_actuation: disabled
-    physical_write_gate: blocked
     demand_on_delta: 0.6
     demand_off_delta: 0.15
     demand_qualification_seconds: 120
@@ -76,8 +74,6 @@ schema:
       topic: str
       airflow_weight: float
   control:
-    auto_actuation: list(disabled|shadow|enabled)
-    physical_write_gate: list(blocked|enabled)
     demand_on_delta: float
     demand_off_delta: float
     demand_qualification_seconds: int

@@ -1,16 +1,20 @@
 # Kotlin Climate Brain
 
-This Home Assistant app runs the AC Brain v5 controller for a zoned Daikin SkyFi system. It uses
-MariaDB for durable operator intent, MQTT room measurements, and a strict confirmed SkyFi command
-path.
+This Home Assistant app runs the one Climate Controller runtime for a zoned Daikin SkyFi system.
+Supervisor provides singleton process ownership; the app starts immediately after every restart
+without handoff files, commissioning markers, runtime selection, or write gates.
 
-Updates are distributed as signed, pre-built `amd64` and `aarch64` images. Home Assistant pulls the
-image whose tag exactly matches the `version` in `config.yaml`; it does not compile the controller
-on the Home Assistant appliance.
+The controller keeps Home Assistant settings authoritative and persists power, requested mode,
+target, fan, selected rooms, revision, runtime continuity, and any pending command. AUTO chooses
+heating or cooling from per-room temperature and humidity-adjusted demand. Humidity never rewrites
+the configured target.
 
-Before first start, configure the database, MQTT, controller address, and zones. AUTO actuation and
-the physical-write gate are deliberately blocked by default. Existing installations retain their
-saved options during routine version updates.
+SkyFi access is serialized. A command always writes complete control state first and complete zone
+state second, followed by device read-back. The Home Assistant integration is asynchronous, so UI
+changes return after durable acceptance while physical confirmation appears on subsequent polls.
 
-The Home Assistant custom integration is published as `kotlin_ac.zip` alongside each GitHub
-release. Controller and integration release artifacts include a SHA-256 checksum manifest.
+The database bootstrap supports clean, legacy, current, interrupted, and stale-rollout database
+states. It preserves readable controller data. If MariaDB is unavailable or storage is corrupt,
+`/readyz` reports the persistence failure and the controller retries without resetting data.
+
+Health endpoints are `/healthz` and `/readyz`; the sole state endpoint is `/api/v2/state`.

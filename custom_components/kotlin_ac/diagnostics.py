@@ -58,11 +58,6 @@ async def async_get_config_entry_diagnostics(hass, entry) -> dict:
             "decision_at": state.control.decision_at,
             "issues": [issue.value for issue in state.control.issues],
             "persistent_call": ControlIssue.PERSISTENT_CALL in state.control.issues,
-            "auto_actuation": state.control.auto_actuation.value,
-            "physical_write_gate_open": (
-                state.control.physical_write_gate_open
-            ),
-            "auto_write_suppressed": state.control.auto_write_suppressed,
             "proposed_auto_plan": (
                 {
                     "action": proposal.action.value,

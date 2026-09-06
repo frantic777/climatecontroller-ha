@@ -58,7 +58,7 @@ class AcPersistenceError(AcHttpError):
 
 
 class AcApiClient:
-    """Small API v2 client with a read-only legacy compatibility path."""
+    """Small client for the sole controller API."""
 
     def __init__(
         self,
@@ -104,15 +104,11 @@ class AcApiClient:
         return self._base_url
 
     async def async_get_state(self) -> AcState:
-        """Read API v2 state, falling back to legacy state only on v2 404."""
+        """Read the sole controller state endpoint."""
 
-        status, payload = await self._request_json(
-            "GET", "/api/v2/state", success_statuses={200, 404}
+        _, payload = await self._request_json(
+            "GET", "/api/v2/state", success_statuses={200}
         )
-        if status == 404:
-            _, payload = await self._request_json(
-                "GET", "/state", success_statuses={200}
-            )
         return self._parse_state(payload)
 
     async def async_patch_state(

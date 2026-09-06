@@ -1,7 +1,7 @@
 """Immutable wire models for the AC Brain REST APIs.
 
 This module deliberately has no Home Assistant or aiohttp imports.  It is the
-normalization boundary between the legacy state document and API v2.
+normalization boundary for the controller API.
 """
 
 from __future__ import annotations
@@ -26,14 +26,6 @@ class RequestedMode(str, Enum):
     AUTO = "AUTO"
     FAN = "FAN"
     DRY = "DRY"
-
-
-class AutoActuation(str, Enum):
-    """Whether AUTO proposals are disabled, shadowed, or physically enabled."""
-
-    DISABLED = "disabled"
-    SHADOW = "shadow"
-    ENABLED = "enabled"
 
 
 class ControlAction(str, Enum):
@@ -134,9 +126,6 @@ class ControlStatus:
     lockout_remaining_seconds: float | None
     decision_at: str | None
     issues: tuple[ControlIssue, ...] = ()
-    auto_actuation: AutoActuation = AutoActuation.DISABLED
-    physical_write_gate_open: bool = False
-    auto_write_suppressed: bool = False
     proposed_auto_plan: ProposedAutoPlan | None = None
 
 
@@ -213,7 +202,6 @@ class AcState:
             and self.desired_revision is not None
             and self.readiness_components.get("persistence")
             is ComponentStatus.READY
-            and self.control.physical_write_gate_open
         )
 
 
@@ -466,37 +454,6 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
     if len(set(issues)) != len(issues):
         raise ModelValidationError("control.issues must not contain duplicates")
 
-    auto_actuation = _casefold_enum(
-        AutoActuation,
-        _alias(
-            control_data,
-            "autoActuation",
-            "auto_actuation",
-            default="disabled",
-            path="control.autoActuation",
-        ),
-        "control.autoActuation",
-    )
-    auto_write_suppressed = _boolean(
-        _alias(
-            control_data,
-            "autoWriteSuppressed",
-            "auto_write_suppressed",
-            default=False,
-            path="control.autoWriteSuppressed",
-        ),
-        "control.autoWriteSuppressed",
-    )
-    physical_write_gate_open = _boolean(
-        _alias(
-            control_data,
-            "physicalWriteGateOpen",
-            "physical_write_gate_open",
-            default=False,
-            path="control.physicalWriteGateOpen",
-        ),
-        "control.physicalWriteGateOpen",
-    )
     proposal_raw = _alias(
         control_data,
         "proposedAutoPlan",
@@ -938,9 +895,6 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
             lockout_remaining_seconds=lockout,
             decision_at=decision_at,
             issues=issues,
-            auto_actuation=auto_actuation,
-            physical_write_gate_open=physical_write_gate_open,
-            auto_write_suppressed=auto_write_suppressed,
             proposed_auto_plan=proposed_auto_plan,
         ),
         zones=MappingProxyType(parsed_zones),
@@ -954,117 +908,14 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
     )
 
 
-def _parse_v1(data: Mapping[str, Any]) -> AcState:
-    power = _string(
-        _alias(data, "power", default="OFF", path="power"), "power"
-    ).upper()
-    mode = _enum(
-        RequestedMode,
-        _alias(data, "mode", default="AUTO", path="mode"),
-        "mode",
-    )
-    target_temperature = _number(
-        _alias(
-            data,
-            "targetTemperature",
-            "target_temperature",
-            default=22.0,
-            path="targetTemperature",
-        ),
-        "targetTemperature",
-    )
-    fan_rate = _string(
-        _alias(
-            data,
-            "fanRate",
-            "fan_rate",
-            default="LOW",
-            path="fanRate",
-        ),
-        "fanRate",
-    )
-    zones_data = _mapping(
-        _alias(data, "zones", default={}, path="zones"), "zones"
-    )
-    parsed_zones: dict[str, ZoneStatus] = {}
-    selected_zones: list[str] = []
-    for zone_name, raw_selected in zones_data.items():
-        if not isinstance(zone_name, str) or not zone_name:
-            raise ModelValidationError("zone names must be non-empty strings")
-        selected = _boolean(raw_selected, f"zones.{zone_name}")
-        if selected:
-            selected_zones.append(zone_name)
-        parsed_zones[zone_name] = ZoneStatus(
-            selected=selected,
-            temperature=None,
-            sensor_fresh=None,
-            demand=None,
-            desired_damper=selected,
-            actual_damper=None,
-        )
-
-    current_temperature = _number(
-        _alias(
-            data,
-            "currentTemperature",
-            "current_temperature",
-            default=None,
-            path="currentTemperature",
-        ),
-        "currentTemperature",
-        optional=True,
-    )
-    enabled = power != "OFF"
-    # Legacy /state is the virtual/requested state.  It can prove that the
-    # desired state is off, but a powered state cannot prove a physical action.
-    action = ControlAction.OFF if not enabled else None
-
-    return AcState(
-        api_version=1,
-        desired_revision=None,
-        plan_revision=None,
-        applied_plan_revision=None,
-        intent=ControlIntent(
-            enabled=enabled,
-            mode=mode,
-            target_temperature=target_temperature,
-            fan_rate=fan_rate,
-            selected_zones=tuple(selected_zones),
-        ),
-        control=ControlStatus(
-            action=action,
-            effective_mode=None,
-            reason=None,
-            lockout_remaining_seconds=None,
-            decision_at=None,
-        ),
-        zones=MappingProxyType(parsed_zones),
-        device=DeviceStatus(
-            available=None,
-            last_seen=None,
-            power=None,
-            mode=None,
-        ),
-        command=CommandInfo(None, CommandStatus.UNKNOWN, 0, None),
-        current_temperature=current_temperature,
-        current_temperature_contributors=(),
-        controller_ready=False,
-        readiness_components=MappingProxyType({}),
-    )
-
-
 def parse_state(value: Mapping[str, Any]) -> AcState:
-    """Normalize a v1 or v2 state document into one immutable representation."""
+    """Validate the sole controller state document into an immutable representation."""
 
     data = _mapping(value, "response")
     version_value = _alias(
-        data, "api_version", "apiVersion", default=None, path="api_version"
+        data, "api_version", "apiVersion", path="api_version"
     )
-    if version_value is None:
-        return _parse_v1(data)
     version = _integer(version_value, "api_version")
-    if version == 1:
-        return _parse_v1(data)
     if version == 2:
         return _parse_v2(data)
     raise ModelValidationError("api_version is unsupported")
@@ -1072,7 +923,6 @@ def parse_state(value: Mapping[str, Any]) -> AcState:
 
 __all__ = [
     "AcState",
-    "AutoActuation",
     "CommandInfo",
     "CommandResult",
     "CommandStatus",
