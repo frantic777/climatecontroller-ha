@@ -1,5 +1,5 @@
 name: "Kotlin Climate Brain"
-version: "5.0.14"
+version: "5.0.15"
 slug: "kotlin_climate_brain"
 description: "Reactive Climate Control"
 image: "ghcr.io/frantic777/climatecontroller"
@@ -9,9 +9,6 @@ arch:
 startup: services
 timeout: 90
 watchdog: "http://[HOST]:[PORT:8080]/healthz"
-services:
-  - mysql:need
-  - mqtt:need
 options:
   # Database Group (Flattened)
   db_url: "jdbc:mariadb://core-mariadb:3306/homeassistant"
@@ -57,7 +54,6 @@ options:
     equipment_target_min_update_seconds: 300
     all_sensors_stale_policy: safe_off
     manual_missing_sensor_policy: intake_fallback
-    external_change_policy: adopt_user_change
   airflow:
     minimum_open_zones: 1
     minimum_open_weight: 1.0
@@ -95,7 +91,6 @@ schema:
     equipment_target_min_update_seconds: int
     all_sensors_stale_policy: list(safe_off|intake_fallback)
     manual_missing_sensor_policy: list(safe_off|intake_fallback|fail_open)
-    external_change_policy: list(adopt_user_change|reassert_brain|pause_automation)
   airflow:
     minimum_open_zones: int
     minimum_open_weight: float
