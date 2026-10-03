@@ -14,6 +14,9 @@ SkyFi access is serialized. A command always writes complete control state first
 state second, followed by device read-back. The Home Assistant integration is asynchronous, so UI
 changes return after durable acceptance while physical confirmation appears on subsequent polls.
 
+FAN mode's native `stemp=0` report is accepted as an unused setpoint. FAN commands are confirmed by
+power, mode, fan speed, and zones, preserving the Home Assistant target for heating and cooling.
+
 The database bootstrap supports clean, legacy, current, interrupted, and stale-rollout database
 states. It preserves readable controller data. MariaDB, MQTT, and SkyFi availability never gate
 process startup: `/readyz` reports any unavailable function and the controller retries without
