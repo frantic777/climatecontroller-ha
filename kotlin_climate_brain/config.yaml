@@ -1,5 +1,5 @@
 name: "Kotlin Climate Brain"
-version: "5.0.18"
+version: "5.0.19"
 slug: "kotlin_climate_brain"
 description: "Reactive Climate Control"
 image: "ghcr.io/frantic777/climatecontroller"
@@ -40,9 +40,6 @@ options:
     maximum_temperature_change_c_per_minute: 2.0
     intake_stale_seconds: 120
     maximum_sensorless_run_seconds: 900
-    minimum_run_seconds: 300
-    minimum_off_seconds: 300
-    direction_dwell_seconds: 1200
     emergency_opposite_delta: 3.0
     persistent_call_warning_seconds: 5400
     equipment_call_margin: 1.0
@@ -77,9 +74,9 @@ schema:
     maximum_temperature_change_c_per_minute: float
     intake_stale_seconds: int
     maximum_sensorless_run_seconds: int
-    minimum_run_seconds: int
-    minimum_off_seconds: int
-    direction_dwell_seconds: int
+    minimum_run_seconds: int?
+    minimum_off_seconds: int?
+    direction_dwell_seconds: int?
     emergency_opposite_delta: float
     persistent_call_warning_seconds: int
     equipment_call_margin: float

@@ -17,6 +17,14 @@ changes return after durable acceptance while physical confirmation appears on s
 FAN mode's native `stemp=0` report is accepted as an unused setpoint. FAN commands are confirmed by
 power, mode, fan speed, and zones, preserving the Home Assistant target for heating and cooling.
 
+The AC unit manages compressor pressure and timing. The controller has no minimum-run,
+minimum-off, direction-dwell, startup hold, or forced OFF step between modes. Old saved pressure
+timing options are ignored. Room hysteresis and sensor qualification still determine demand.
+
+The unit's return-air temperature (`htemp`) determines the equipment setpoint required to keep
+cooling/heating active. It never replaces selected room readings or changes the user's comfort
+target. Sensorless fallback cannot continually restart after its maximum allowance expires.
+
 The database bootstrap supports clean, legacy, current, interrupted, and stale-rollout database
 states. It preserves readable controller data. MariaDB, MQTT, and SkyFi availability never gate
 process startup: `/readyz` reports any unavailable function and the controller retries without
