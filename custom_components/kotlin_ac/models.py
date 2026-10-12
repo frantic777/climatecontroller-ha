@@ -35,7 +35,6 @@ class ControlAction(str, Enum):
     COOLING = "COOLING"
     FAN = "FAN"
     DRYING = "DRYING"
-    LOCKOUT = "LOCKOUT"
     DEGRADED = "DEGRADED"
 
 
@@ -123,10 +122,14 @@ class ControlStatus:
     action: ControlAction | None
     effective_mode: str | None
     reason: str | None
-    lockout_remaining_seconds: float | None
     decision_at: str | None
     issues: tuple[ControlIssue, ...] = ()
     proposed_auto_plan: ProposedAutoPlan | None = None
+    desired_action: ControlAction | None = None
+    summary: str | None = None
+    desired_plan: ProposedAutoPlan | None = None
+    hysteresis_on_delta: float | None = None
+    hysteresis_off_delta: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,6 +141,14 @@ class ZoneStatus:
     desired_damper: bool | None
     actual_damper: bool | None
     sensor_status: SensorStatus | None = None
+    humidity: float | None = None
+    humidity_status: str | None = None
+    humidity_correction: float = 0.0
+    effective_temperature: float | None = None
+    comfort_target: float | None = None
+    sensor_last_seen: str | None = None
+    sensor_age_seconds: float | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +157,11 @@ class DeviceStatus:
     last_seen: str | None
     power: str | None
     mode: str | None
+    equipment_target_temperature: float | None = None
+    intake_temperature: float | None = None
+    fan_rate: str | None = None
+    open_zones: tuple[str, ...] = ()
+    state_age_seconds: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,6 +235,40 @@ class CommandResult:
 _MISSING = object()
 _SAFE_COMPONENT_NAME = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
 EnumT = TypeVar("EnumT", bound=Enum)
+
+
+def _optional_measurement(data, name, path, *, minimum=None, maximum=None):
+    value = _number(data.get(name), f"{path}.{name}", optional=True)
+    if value is not None and ((minimum is not None and value < minimum) or
+                              (maximum is not None and value > maximum)):
+        raise ModelValidationError(f"{path}.{name} is out of range")
+    return value
+
+
+def _zone_names(value, path):
+    if not isinstance(value, (list, tuple)):
+        raise ModelValidationError(f"{path} must be an array")
+    names = tuple(_string(name, path) for name in value)
+    if any(not name.strip() for name in names) or len(set(names)) != len(names):
+        raise ModelValidationError(f"{path} must contain unique nonblank names")
+    return names
+
+
+def _parse_physical_plan(raw, path):
+    if raw is None:
+        return None
+    data = _mapping(raw, path)
+    fan_rate = _string(data.get("fanRate"), f"{path}.fanRate")
+    if fan_rate not in {"LOW", "MED", "HIGH", "LOW_AUTO", "MED_AUTO", "HIGH_AUTO"}:
+        raise ModelValidationError(f"{path}.fanRate is unsupported")
+    return ProposedAutoPlan(
+        action=_enum(ControlAction, data.get("action"), f"{path}.action"),
+        power=_enum(DevicePower, data.get("power"), f"{path}.power"),
+        mode=_enum(DeviceMode, data.get("mode"), f"{path}.mode"),
+        equipment_target_temperature=_number(data.get("equipmentTargetTemperature"), f"{path}.equipmentTargetTemperature"),
+        fan_rate=fan_rate,
+        open_zones=_zone_names(data.get("openZones"), f"{path}.openZones"),
+    )
 
 
 def _mapping(value: Any, path: str) -> Mapping[str, Any]:
@@ -416,21 +466,6 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
         "control.reason",
         optional=True,
     )
-    lockout = _number(
-        _alias(
-            control_data,
-            "lockoutRemainingSeconds",
-            "lockout_remaining_seconds",
-            default=None,
-            path="control.lockoutRemainingSeconds",
-        ),
-        "control.lockoutRemainingSeconds",
-        optional=True,
-    )
-    if lockout is not None and lockout < 0:
-        raise ModelValidationError(
-            "control.lockoutRemainingSeconds must be non-negative"
-        )
     decision_at = _string(
         _alias(
             control_data,
@@ -537,6 +572,11 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
             open_zones=open_zones,
         )
 
+    desired_plan_raw = control_data.get("desiredPlan")
+    desired_plan = _parse_physical_plan(desired_plan_raw, "control.desiredPlan")
+    desired_action = _optional_enum(ControlAction, control_data.get("desiredAction"), "control.desiredAction")
+    summary = _string(control_data.get("summary"), "control.summary", optional=True)
+
     zones_data = _mapping(_alias(data, "zones", path="zones"), "zones")
     parsed_zones: dict[str, ZoneStatus] = {}
     for zone_name, raw_zone in zones_data.items():
@@ -625,6 +665,14 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
             desired_damper,
             actual_damper,
             sensor_status,
+            humidity=_optional_measurement(zone_data, "humidity", zone_path, minimum=0, maximum=100),
+            humidity_status=_string(zone_data.get("humidityStatus"), f"{zone_path}.humidityStatus", optional=True),
+            humidity_correction=_number(zone_data.get("humidityCorrection", 0.0), f"{zone_path}.humidityCorrection"),
+            effective_temperature=_optional_measurement(zone_data, "effectiveTemperature", zone_path),
+            comfort_target=_optional_measurement(zone_data, "comfortTarget", zone_path),
+            sensor_last_seen=_string(zone_data.get("sensorLastSeen"), f"{zone_path}.sensorLastSeen", optional=True),
+            sensor_age_seconds=_optional_measurement(zone_data, "sensorAgeSeconds", zone_path, minimum=0),
+            reason=_string(zone_data.get("reason"), f"{zone_path}.reason", optional=True),
         )
 
     device_data = _mapping(_alias(data, "device", path="device"), "device")
@@ -659,6 +707,11 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
         last_seen,
         power.upper() if power is not None else None,
         mode_value.upper() if mode_value is not None else None,
+        equipment_target_temperature=_optional_measurement(device_data, "equipmentTargetTemperature", "device"),
+        intake_temperature=_optional_measurement(device_data, "intakeTemperature", "device"),
+        fan_rate=_string(device_data.get("fanRate"), "device.fanRate", optional=True),
+        open_zones=_zone_names(device_data.get("openZones", []), "device.openZones"),
+        state_age_seconds=_optional_measurement(device_data, "stateAgeSeconds", "device", minimum=0),
     )
 
     command = _parse_command(_alias(data, "command", path="command"))
@@ -892,10 +945,14 @@ def _parse_v2(data: Mapping[str, Any]) -> AcState:
             action=action,
             effective_mode=effective_mode,
             reason=reason,
-            lockout_remaining_seconds=lockout,
             decision_at=decision_at,
             issues=issues,
             proposed_auto_plan=proposed_auto_plan,
+            desired_action=desired_action,
+            summary=summary,
+            desired_plan=desired_plan,
+            hysteresis_on_delta=_optional_measurement(control_data, "hysteresisOnDelta", "control", minimum=0),
+            hysteresis_off_delta=_optional_measurement(control_data, "hysteresisOffDelta", "control", minimum=0),
         ),
         zones=MappingProxyType(parsed_zones),
         device=device,

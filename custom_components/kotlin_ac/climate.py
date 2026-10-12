@@ -67,9 +67,18 @@ ACTION_TO_HA = {
     ControlAction.COOLING: HVACAction.COOLING,
     ControlAction.FAN: HVACAction.FAN,
     ControlAction.DRYING: HVACAction.DRYING,
-    ControlAction.LOCKOUT: HVACAction.IDLE,
     ControlAction.DEGRADED: HVACAction.IDLE,
 }
+
+
+def _plan_attributes(plan):
+    if plan is None:
+        return None
+    return {
+        "action": plan.action.value, "power": plan.power.value, "mode": plan.mode.value,
+        "equipment_target_temperature": plan.equipment_target_temperature,
+        "fan_rate": plan.fan_rate, "open_zones": list(plan.open_zones),
+    }
 
 
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
@@ -167,7 +176,39 @@ class KotlinMainAC(CoordinatorEntity, ClimateEntity):
             "applied_plan_revision": state.applied_plan_revision,
             "effective_mode": state.control.effective_mode,
             "control_reason": state.control.reason,
-            "lockout_remaining_seconds": state.control.lockout_remaining_seconds,
+            "status_summary": state.control.summary,
+            "desired_action": state.control.desired_action.value if state.control.desired_action else None,
+            "hysteresis_on_delta": state.control.hysteresis_on_delta,
+            "hysteresis_off_delta": state.control.hysteresis_off_delta,
+            "unit_power": state.device.power,
+            "unit_mode": state.device.mode,
+            "unit_equipment_target": state.device.equipment_target_temperature,
+            "unit_intake_temperature": state.device.intake_temperature,
+            "unit_fan_rate": state.device.fan_rate,
+            "unit_open_zones": list(state.device.open_zones),
+            "unit_state_age_seconds": state.device.state_age_seconds,
+            "command_attempt": state.command.attempt,
+            "command_error": state.command.last_error,
+            "desired_plan": _plan_attributes(state.control.desired_plan),
+            "room_status": {
+                name: {
+                    "selected": zone.selected,
+                    "temperature": zone.temperature,
+                    "humidity": zone.humidity,
+                    "humidity_status": zone.humidity_status,
+                    "humidity_correction": zone.humidity_correction,
+                    "effective_temperature": zone.effective_temperature,
+                    "comfort_target": zone.comfort_target,
+                    "sensor_status": zone.sensor_status.value if zone.sensor_status else None,
+                    "sensor_last_seen": zone.sensor_last_seen,
+                    "sensor_age_seconds": zone.sensor_age_seconds,
+                    "demand": zone.demand.value if zone.demand else None,
+                    "reason": zone.reason,
+                    "desired_damper": zone.desired_damper,
+                    "actual_damper": zone.actual_damper,
+                }
+                for name, zone in state.zones.items()
+            },
             "command_status": state.command.status.value,
             "command_pending": state.command.status
             in {

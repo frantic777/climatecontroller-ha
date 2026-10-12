@@ -19,6 +19,10 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
     async_add_entities(
         [
             KotlinDiagnosticSensor(
+                coordinator, "control_status", "AC Control Status",
+                lambda state: state.control.summary,
+            ),
+            KotlinDiagnosticSensor(
                 coordinator,
                 "stale_zone_count",
                 "Stale Zone Count",

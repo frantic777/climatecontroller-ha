@@ -1,5 +1,5 @@
 name: "Kotlin Climate Brain"
-version: "5.0.19"
+version: "5.0.20"
 slug: "kotlin_climate_brain"
 description: "Reactive Climate Control"
 image: "ghcr.io/frantic777/climatecontroller"
@@ -35,11 +35,9 @@ options:
   control:
     demand_on_delta: 0.6
     demand_off_delta: 0.15
-    demand_qualification_seconds: 120
     sensor_stale_seconds: 5400
     maximum_temperature_change_c_per_minute: 2.0
     intake_stale_seconds: 120
-    maximum_sensorless_run_seconds: 900
     emergency_opposite_delta: 3.0
     persistent_call_warning_seconds: 5400
     equipment_call_margin: 1.0
@@ -48,7 +46,6 @@ options:
     equipment_target_max: 30.0
     equipment_target_step: 0.5
     equipment_target_deadband: 0.5
-    equipment_target_min_update_seconds: 300
     all_sensors_stale_policy: safe_off
     manual_missing_sensor_policy: intake_fallback
   airflow:
@@ -69,11 +66,12 @@ schema:
   control:
     demand_on_delta: float
     demand_off_delta: float
-    demand_qualification_seconds: int
+    # Ignored saved keys only; not offered in new options and not read by the runtime.
+    demand_qualification_seconds: int?
     sensor_stale_seconds: int
     maximum_temperature_change_c_per_minute: float
     intake_stale_seconds: int
-    maximum_sensorless_run_seconds: int
+    maximum_sensorless_run_seconds: int?
     minimum_run_seconds: int?
     minimum_off_seconds: int?
     direction_dwell_seconds: int?
@@ -85,7 +83,7 @@ schema:
     equipment_target_max: float
     equipment_target_step: float
     equipment_target_deadband: float
-    equipment_target_min_update_seconds: int
+    equipment_target_min_update_seconds: int?
     all_sensors_stale_policy: list(safe_off|intake_fallback)
     manual_missing_sensor_policy: list(safe_off|intake_fallback|fail_open)
   airflow:

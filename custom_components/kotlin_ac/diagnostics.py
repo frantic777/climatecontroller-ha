@@ -52,9 +52,6 @@ async def async_get_config_entry_diagnostics(hass, entry) -> dict:
                 else None
             ),
             "effective_mode": state.control.effective_mode,
-            "lockout_remaining_seconds": (
-                state.control.lockout_remaining_seconds
-            ),
             "decision_at": state.control.decision_at,
             "issues": [issue.value for issue in state.control.issues],
             "persistent_call": ControlIssue.PERSISTENT_CALL in state.control.issues,
